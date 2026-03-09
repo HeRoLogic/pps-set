@@ -14,7 +14,22 @@ channel values to zero.
 along with their previous values. When you read, the last known state is
 re-sent so nothing changes on the device.
 
+## Features
+
+- Set voltage and current limit per channel
+- Individual channel on/off control
+- Series mode (CH1+CH2 in series, up to 64V)
+- Parallel mode (CH1||CH2, up to 10A)
+- Overcurrent protection (OCP) on/off
+- Input validation with clamping to hardware limits
+- Requested/Before/After display showing what you asked for vs. what the device reports
+- Series/Parallel total voltage and current in output
+- Verification warnings if device doesn't match requested state
+
 ## Usage
+
+### Basic
+
 ```bash
 # Set all three channels and turn on
 pps-set CH1=5.0V/1.0A CH2=3.3V/1.0A CH3=1.8V/0.5A --on
@@ -32,22 +47,74 @@ pps-set --off
 pps-set --on
 ```
 
-Set commands show before/after state:
+### Individual channel control
+
+```bash
+# Only CH1 on, others off
+pps-set CH1=5.0V/1.0A --ch1-on --ch2-off --ch3-off
+
+# Turn on CH3 without touching CH1 and CH2
+pps-set --ch3-on
 ```
-Before:
+
+### Channel modes
+
+```bash
+# Series: CH1+CH2 in series (e.g. 15V + 15V = 30V, or ±15V)
+pps-set CH1=15.0V/1.0A CH2=15.0V/1.0A --series --on
+
+# Parallel: CH1||CH2 (e.g. 5V with up to 10A)
+pps-set CH1=5.0V/2.5A CH2=5.0V/2.5A --parallel --on
+
+# Back to independent
+pps-set --independent
+```
+
+### Overcurrent protection
+
+```bash
+# Enable OCP — channels shut off if current limit is exceeded
+pps-set --ocp-on
+
+# Disable OCP — channels stay on, current is limited (CC mode)
+pps-set --ocp-off
+```
+
+### Output format
+
+Set commands show Requested, Before, and After:
+
+```
+Requested:
+  CH1:  15.00 V  limit 1.000 A  [ON]
+  CH2:  15.00 V  limit 1.000 A  [ON]
+  => Series total: 30.00 V / limit 1.000 A
+  CH3:   1.80 V  limit 0.500 A  [ON]
+  Mode: Series  OCP: ON
+
+Before (measured):
   CH1:   5.00 V  0.000 A  [ON]
   CH2:   3.30 V  0.000 A  [ON]
+  => Series total: 8.30 V / 0.000 A
   CH3:   1.72 V  0.000 A  [ON]
   Mode: Independent  OCP: OFF
 
-After:
-  CH1:  12.00 V  0.000 A  [ON]
-  CH2:   3.30 V  0.000 A  [ON]
+After (measured):
+  CH1:  15.00 V  0.000 A  [ON]
+  CH2:  15.00 V  0.000 A  [ON]
+  => Series total: 30.00 V / 0.000 A
   CH3:   1.72 V  0.000 A  [ON]
-  Mode: Independent  OCP: OFF
+  Mode: Series  OCP: ON
 ```
 
+- **Requested** shows what you asked for, with `limit` for current (= the max the device will deliver)
+- **Before/After** show measured values from the device (actual voltage and current flowing)
+- Series/Parallel totals are shown automatically when in those modes
+- Values exceeding hardware limits are clamped with a WARNING
+- If After doesn't match Requested, a VERIFY warning is shown
+
 ## Installation
+
 ```bash
 # Requires Python 3 and pyserial
 sudo apt-get install python3-serial    # Debian/Raspberry Pi OS
